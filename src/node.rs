@@ -8,7 +8,7 @@ use crate::utils::Touch;
 
 type SequencedValue = (Value, u64);
 type Diff<'a> = (&'a str, (&'a Value, u64));
-type Digest<'a> = (&'a str, u64);
+pub type Digest<'a> = (&'a str, u64);
 
 pub trait Node {
   fn digest(&self) -> Digest;
@@ -19,16 +19,16 @@ pub trait Node {
 
 struct BaseNode {
   identifier: String,
-  address: Option<SocketAddr>,
+  address: SocketAddr,
   sequence: u64,
   values: HashMap<String, SequencedValue>,
 }
 
 impl BaseNode {
-  fn new(identifier: &str) -> Self {
+  fn new(identifier: String, address: SocketAddr) -> Self {
     Self {
-      identifier: identifier.to_string(),
-      address: None,
+      identifier,
+      address,
       sequence: 0,
       values: HashMap::new(),
     }
@@ -72,7 +72,8 @@ impl Node for SelfNode {
 pub struct PeerNode(BaseNode, Option<FailureDetector>, Touch);
 
 impl PeerNode {
-  pub fn identifier(&self) -> String { self.0.identifier }
+  pub fn identifier(&self) -> &str { self.0.identifier.as_str() }
+  pub fn address(&self) -> &SocketAddr { &self.0.address }
 
   pub fn active(&self) -> bool { self.1.is_some() }
 

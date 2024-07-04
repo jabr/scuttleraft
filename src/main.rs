@@ -27,7 +27,7 @@ fn main() {
     x.insert("c", 33);
 
     let mut c = 0;
-    while c < 100 {
+    while c < 20 {
         let (k,v) = x.get_index(c % x.len()).unwrap();
         println!("{}: {} => {}", c, k, v);
         c += 1;
@@ -37,8 +37,22 @@ fn main() {
         if c == 10 {
             x.insert("d", 44);
         }
-        if c > 100 {
-            break;
-        }
     }
+
+    let mut rng = utils::rng(None);
+    for _ in 0..10 {
+        println!("{}", rng.rand_u64());
+    }
+    println!("x");
+    for _ in 0..10 {
+        println!("{}", rng.rand_u64());
+    }
+
+    let mut aa = (0..100).collect();
+    utils::shuffle(&mut rng, &mut aa, usize::MAX);
+    println!("{:?}", aa);
+
+    aa = (0..100).collect();
+    utils::shuffle(&mut rng, &mut aa, 2);
+    println!("{:?}", aa);
 }
