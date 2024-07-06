@@ -1,20 +1,24 @@
-use std::collections::HashSet;
 use std::net::SocketAddr;
+use std::iter::{Iterator, IntoIterator};
+
+use fxhash::FxHashSet;
 
 use indexmap::IndexMap;
 use crate::node::{Node, PeerNode, Digest};
-use crate::utils::{Rng, shuffle};
+use crate::utils::{Rng, rng, rand};
 
 pub struct Peers {
   list: IndexMap<String, PeerNode>,
   offset: usize,
+  roots: Vec<SocketAddr>,
 }
 
-impl Peers {
-  pub fn new() -> Self {
+impl<'t> Peers {
+  pub fn new(roots: Vec<SocketAddr>) -> Self {
     Self {
       list: IndexMap::new(),
       offset: 0,
+      roots,
     }
   }
 
@@ -48,43 +52,38 @@ impl Peers {
     }
   }
 
-  pub fn targets(&mut self) -> HashSet<SocketAddr> {
-    let mut sample = HashSet::<SocketAddr>::new();
+  pub fn targets(&mut self, rng: &mut Rng) -> Vec<SocketAddr> {
+    let mut sample = FxHashSet::<SocketAddr>::default();
 
-    // if self.len() == 0 {
-    //   return roots
-    // }
-    let mut rng = Rng();
+    if self.len() == 0 {
+      return self.roots.clone();
+    }
 
     // cycle through all peer nodes
     self.next().and_then(|n| Some(sample.insert(*n.address())));
 
     // sometimes, add a root
-    if rng.rand_float() < 0.2 {
-      // const address = this.randomRoot()
-      // if (address) sample.add(address)
+    if !self.roots.is_empty() && rng.rand_float() < 0.2 {
+      sample.insert(*rand::choose(rng, &self.roots));
     }
 
     let (mut actives, inactives) = self.partition();
 
     // sometimes, add an inactive
     if rng.rand_float() < 0.1 {
-      // const node = this.peers.randomInactive()
-      // if (node) sample.add(node.address)
-      let node = inactives[rng.rand_range(0 .. (inactives.len() as u64)) as usize];
-      sample.insert(*node.address());
+      sample.insert(*rand::choose(rng, &inactives).address());
     }
 
     // add random actives to fill
     let count = usize::min(
       actives.len(),
-      isize::max(0, (4 - sample.len() as isize)) as usize
+      isize::max(0, 4 - sample.len() as isize) as usize
     );
-    shuffle(&mut rng, &mut actives, count);
+    rand::shuffle(rng, &mut actives, count);
     for n in &actives[0..count] {
       sample.insert(*n.address());
     }
 
-    return sample;
+    return sample.into_iter().collect();
   }
 }

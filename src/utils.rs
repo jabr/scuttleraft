@@ -13,35 +13,27 @@ fn generate_seed() -> u128 {
   bytes.iter().fold(0u128, |a, b| a << 8 | (*b as u128))
 }
 
-pub fn rng(seed: Option<u128>) -> oorandom::Rand64 {
-  oorandom::Rand64::new(match seed {
-    Some(s) => { s }
-    None => { generate_seed() }
-  })
+pub type Rng = oorandom::Rand64;
+
+pub fn rng(seed: Option<u128>) -> Rng {
+  Rng::new(seed.unwrap_or_else(|| generate_seed()))
 }
 
-static mut RNG: Option<oorandom::Rand64> = None;
-pub fn Rng() -> oorandom::Rand64 {
-  unsafe {
-  match RNG {
-    Some(r) => { r }
-    None => {
-      let r = rng(None);
-      RNG = Some(r);
-      r
+pub mod rand {
+  // Fisher–Yates shuffle.
+  // * Note: this modifies the input array.
+  pub fn shuffle<T>(rng: &mut super::Rng, array: &mut Vec<T>, max: usize) {
+    let len = array.len();
+    let m = usize::min(max, len - 2);
+    for i in 0..m {
+      let j = rng.rand_range(i as u64 .. len as u64) as usize;
+      array.swap(i, j);
     }
   }
-}
-}
 
-// Fisher–Yates shuffle.
-// * Note: this modifies the input array.
-pub fn shuffle<T>(rng: &mut oorandom::Rand64, array: &mut Vec<T>, max: usize) {
-  let len = array.len();
-  let m = usize::min(max, len - 2);
-  for i in 0..m {
-    let j = rng.rand_range(i as u64 .. len as u64) as usize;
-    array.swap(i, j);
+  pub fn choose<'a, T>(rng: &mut super::Rng, array: &'a Vec<T>) -> &'a T {
+    let index = rng.rand_range(0 .. array.len() as u64) as usize;
+    return &array[index];
   }
 }
 

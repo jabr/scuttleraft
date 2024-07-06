@@ -1,16 +1,18 @@
-use std::collections::HashMap; // @todo: better option?
 use std::net::SocketAddr;
+use fxhash::FxHashMap;
 
 use crate::Value;
-
 use crate::failure_detector::FailureDetector;
 use crate::utils::Touch;
 
 type SequencedValue = (Value, u64);
-type Diff<'a> = (&'a str, (&'a Value, u64));
+pub type Diff<'a> = (&'a str, (&'a Value, u64));
 pub type Digest<'a> = (&'a str, u64);
 
 pub trait Node {
+  fn identifier(&self) -> &str;
+  fn address(&self) -> &SocketAddr;
+  fn sequence(&self) -> u64;
   fn digest(&self) -> Digest;
   fn get(&self, key: &str) -> Option<&Value>;
   fn diff(&self, rom: u64) -> Vec<Diff>;
@@ -21,7 +23,7 @@ struct BaseNode {
   identifier: String,
   address: SocketAddr,
   sequence: u64,
-  values: HashMap<String, SequencedValue>,
+  values: FxHashMap<String, SequencedValue>,
 }
 
 impl BaseNode {
@@ -30,9 +32,13 @@ impl BaseNode {
       identifier,
       address,
       sequence: 0,
-      values: HashMap::new(),
+      values: FxHashMap::default(),
     }
   }
+
+  fn identifier(&self) -> &str { self.identifier.as_str() }
+  fn address(&self) -> &SocketAddr { &self.address }
+  fn sequence(&self) -> u64 { self.sequence }
 
   fn digest(&self) -> Digest {
     (self.identifier.as_str(), self.sequence)
@@ -63,6 +69,9 @@ impl SelfNode {
 }
 
 impl Node for SelfNode {
+  fn identifier(&self) -> &str { self.0.identifier() }
+  fn address(&self) -> &SocketAddr { self.0.address() }
+  fn sequence(&self) -> u64 { self.0.sequence() }
   fn digest(&self) -> Digest { self.0.digest() }
   fn get(&self, key: &str) -> Option<&Value> { self.0.get(key) }
   fn diff(&self, from: u64) -> Vec<Diff> { self.0.diff(from) }
@@ -72,9 +81,6 @@ impl Node for SelfNode {
 pub struct PeerNode(BaseNode, Option<FailureDetector>, Touch);
 
 impl PeerNode {
-  pub fn identifier(&self) -> &str { self.0.identifier.as_str() }
-  pub fn address(&self) -> &SocketAddr { &self.0.address }
-
   pub fn active(&self) -> bool { self.1.is_some() }
 
   fn mark_inactive(&mut self) {
@@ -116,6 +122,9 @@ impl PeerNode {
 }
 
 impl Node for PeerNode {
+  fn identifier(&self) -> &str { self.0.identifier() }
+  fn address(&self) -> &SocketAddr { self.0.address() }
+  fn sequence(&self) -> u64 { self.0.sequence }
   fn digest(&self) -> Digest { self.0.digest() }
   fn get(&self, key: &str) -> Option<&Value> { self.0.get(key) }
   fn diff(&self, from: u64) -> Vec<Diff> { self.0.diff(from) }

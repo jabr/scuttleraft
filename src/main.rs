@@ -2,6 +2,7 @@ mod failure_detector;
 mod utils;
 mod node;
 mod peers;
+mod gossip;
 
 use indexmap::IndexMap;
 
@@ -14,8 +15,6 @@ enum Value {
     Integers(Vec<i64>),
     Floats(Vec<f64>),
 }
-
-use std::collections::HashMap;
 
 fn main() {
     println!("Hello, world!");
