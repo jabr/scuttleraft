@@ -6,8 +6,8 @@ use crate::failure_detector::FailureDetector;
 use crate::utils::Touch;
 
 type SequencedValue = (Value, u64);
-pub type Diff<'a> = (&'a str, (&'a Value, u64));
-pub type Digest<'a> = (&'a str, u64);
+pub type Diff = (String, (Value, u64));
+pub type Digest = (String, u64);
 
 pub trait Node {
   fn identifier(&self) -> &str;
@@ -15,7 +15,7 @@ pub trait Node {
   fn sequence(&self) -> u64;
   fn digest(&self) -> Digest;
   fn get(&self, key: &str) -> Option<&Value>;
-  fn diff(&self, rom: u64) -> Vec<Diff>;
+  fn diff(&self, from: u64) -> Vec<Diff>;
   fn discardable(&mut self) -> bool;
 }
 
@@ -41,7 +41,7 @@ impl BaseNode {
   fn sequence(&self) -> u64 { self.sequence }
 
   fn digest(&self) -> Digest {
-    (self.identifier.as_str(), self.sequence)
+    (self.identifier.clone(), self.sequence)
   }
 
   fn get(&self, key: &str) -> Option<&Value> {
@@ -50,8 +50,8 @@ impl BaseNode {
 
   fn diff(&self, from: u64) -> Vec<Diff> {
     self.values.iter()
-      .filter(|&(_, &(_,s))| s > from)
-      .map(|(k, (v,s))| (k.as_str(), (v, *s)))
+      .filter(|(_, &(_, s))| s > from)
+      .map(|(k, (v, s))| (k.clone(), (v.clone(), *s)))
       .collect()
   }
 }
@@ -59,6 +59,10 @@ impl BaseNode {
 pub struct SelfNode(BaseNode);
 
 impl SelfNode {
+  fn new(identifier: String, address: SocketAddr) -> Self {
+    Self(BaseNode::new(identifier, address))
+  }
+
   fn set(&mut self, key: &str, value: Value) {
     self.0.sequence += 1;
     self.0.values.insert(
@@ -81,6 +85,10 @@ impl Node for SelfNode {
 pub struct PeerNode(BaseNode, Option<FailureDetector>, Touch);
 
 impl PeerNode {
+  pub fn new(identifier: String, address: SocketAddr) -> Self {
+    Self(BaseNode::new(identifier, address), None, Touch::now())
+  }
+
   pub fn active(&self) -> bool { self.1.is_some() }
 
   fn mark_inactive(&mut self) {
@@ -104,16 +112,16 @@ impl PeerNode {
     return self.0.values.get(key).unwrap_or(&default).1;
   }
 
-  pub fn apply(&mut self, sequence: u64, updates: core::option::Iter<Diff>) {
+  pub fn apply(&mut self, sequence: u64, updates: Vec<Diff>) {
     // is update older than our current data?
     if sequence < self.0.sequence { return; }
 
     self.update_detector();
 
-    for &(k, (v, s)) in updates {
-      if s > self.current_sequence_for(k) {
+    for (k, (v, s)) in updates {
+      if s > self.current_sequence_for(k.as_str()) {
         // update value when sequence is newer
-        self.0.values.insert(k.to_string(), (v.clone(), s));
+        self.0.values.insert(k, (v, s));
       }
     }
 

@@ -48,10 +48,10 @@ fn main() {
     }
 
     let mut aa = (0..100).collect();
-    utils::shuffle(&mut rng, &mut aa, usize::MAX);
+    utils::rand::shuffle(&mut rng, &mut aa, usize::MAX);
     println!("{:?}", aa);
 
     aa = (0..100).collect();
-    utils::shuffle(&mut rng, &mut aa, 2);
+    utils::rand::shuffle(&mut rng, &mut aa, 2);
     println!("{:?}", aa);
 }

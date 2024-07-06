@@ -1,11 +1,12 @@
 use std::net::SocketAddr;
 use std::iter::{Iterator, IntoIterator};
 
-use fxhash::FxHashSet;
+use std::collections::HashMap;
+use fxhash::{FxHashSet, FxHashMap};
 
 use indexmap::IndexMap;
 use crate::node::{Node, PeerNode, Digest};
-use crate::utils::{Rng, rng, rand};
+use crate::utils::{Rng, rand};
 
 pub struct Peers {
   list: IndexMap<String, PeerNode>,
@@ -13,7 +14,7 @@ pub struct Peers {
   roots: Vec<SocketAddr>,
 }
 
-impl<'t> Peers {
+impl Peers {
   pub fn new(roots: Vec<SocketAddr>) -> Self {
     Self {
       list: IndexMap::new(),
@@ -24,12 +25,12 @@ impl<'t> Peers {
 
   pub fn len(&self) -> usize { self.list.len() }
 
-  pub fn get(&self, identifier: &str) -> Option<&PeerNode> {
-    self.list.get(identifier)
+  pub fn get(&mut self, identifier: &str) -> Option<&mut PeerNode> {
+    self.list.get(identifier);
   }
 
-  pub fn add(&mut self, node: PeerNode) {
-    self.list.insert(node.identifier().to_owned(), node);
+  pub fn add(&mut self, node: PeerNode) -> Option<PeerNode> {
+    self.list.insert(node.identifier().to_owned(), node)
   }
 
   pub fn digest(&self) -> Vec<Digest> {
@@ -42,6 +43,11 @@ impl<'t> Peers {
 
   fn partition(&self) -> (Vec<&PeerNode>, Vec<&PeerNode>) {
     self.list.values().partition(|n| n.active())
+  }
+
+  pub fn actives(&self) -> FxHashMap<&str, &PeerNode> {
+    let (actives, _) = self.partition();
+    return FxHashMap::from_iter(actives.iter().map(|&n| (n.identifier(), n)));
   }
 
   fn next(&mut self) -> Option<&PeerNode> {
