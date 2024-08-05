@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 use std::iter::{Iterator, IntoIterator};
 
-use std::collections::HashMap;
 use fxhash::{FxHashSet, FxHashMap};
 
 use indexmap::IndexMap;
@@ -25,8 +24,12 @@ impl Peers {
 
   pub fn len(&self) -> usize { self.list.len() }
 
-  pub fn get(&mut self, identifier: &str) -> Option<&mut PeerNode> {
-    self.list.get(identifier);
+  pub fn get(&self, identifier: &str) -> Option<&PeerNode> {
+    self.list.get(identifier)
+  }
+
+  pub fn get_mut(&mut self, identifier: &str) -> Option<&mut PeerNode> {
+    self.list.get_mut(identifier)
   }
 
   pub fn add(&mut self, node: PeerNode) -> Option<PeerNode> {

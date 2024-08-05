@@ -13,7 +13,7 @@ type NodeDiff = (Digest, Vec<Diff>, Option<SocketAddr>);
 
 impl Gossip {
 
-  fn process_digest(&self, digest: Vec<Digest>) -> (Vec<Digest>, Vec<NodeDiff>) {
+  fn process_digest(&mut self, digest: Vec<Digest>) -> (Vec<Digest>, Vec<NodeDiff>) {
     let mut requests: Vec<Digest> = Vec::new();
     let mut diffs: Vec<NodeDiff> = Vec::new();
     let mut actives = self.peers.actives();
@@ -74,7 +74,7 @@ impl Gossip {
         continue;
       }
 
-      match self.peers.get(identifier.as_str()) {
+      match self.peers.get_mut(identifier.as_str()) {
         Some(n) => { n.apply(sequence, updates); }
         None => {
           match address {
@@ -93,7 +93,7 @@ impl Gossip {
     }
   }
 
-  fn process_requests(&self, requests: Vec<Digest>) -> Vec<NodeDiff> {
+  fn process_requests(&mut self, requests: Vec<Digest>) -> Vec<NodeDiff> {
     let mut diffs: Vec<NodeDiff> = Vec::new();
 
     let mut add = |n: &dyn Node, sequence: u64| {
