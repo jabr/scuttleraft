@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use fxhash::FxHashMap;
 
-use crate::Value;
+use crate::value::Value;
 use crate::failure_detector::FailureDetector;
 use crate::utils::Touch;
 
@@ -29,7 +29,7 @@ struct BaseNode {
 impl BaseNode {
   fn new(identifier: String, address: SocketAddr) -> Self {
     Self {
-      identifier,
+      identifier: identifier,
       address,
       sequence: 0,
       values: FxHashMap::default(),
@@ -59,7 +59,7 @@ impl BaseNode {
 pub struct SelfNode(BaseNode);
 
 impl SelfNode {
-  fn new(identifier: String, address: SocketAddr) -> Self {
+  pub fn new(identifier: String, address: SocketAddr) -> Self {
     Self(BaseNode::new(identifier, address))
   }
 
@@ -80,6 +80,56 @@ impl Node for SelfNode {
   fn get(&self, key: &str) -> Option<&Value> { self.0.get(key) }
   fn diff(&self, from: u64) -> Vec<Diff> { self.0.diff(from) }
   fn discardable(&mut self) -> bool { false }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::net::ToSocketAddrs;
+
+  fn addr() -> SocketAddr {
+    "127.1.1.11:3322".to_socket_addrs()
+      .unwrap().into_iter().nth(0).unwrap()
+  }
+
+  #[test]
+  fn test_self_node_is_node() {
+    let node = SelfNode::new("root".to_string(), addr());
+    assert_eq!(node.identifier(), "root");
+    assert_eq!(node.address().to_string(), "127.1.1.11:3322");
+    assert_eq!(node.sequence(), 0);
+    assert_eq!(node.digest(), ("root".to_string(), 0));
+    assert!(node.get("buckets").is_none());
+    assert!(node.diff(0).is_empty());
+  }
+
+  #[test]
+  fn test_self_node_set() {
+    let mut node = SelfNode::new("root".to_string(), addr());
+    assert_eq!(node.sequence(), 0);
+    assert_eq!(node.digest(), ("root".to_string(), 0));
+    assert!(node.get("buckets").is_none());
+    assert!(node.diff(0).is_empty());
+    let buckets: Value = vec![ 1, 5, 6 ].into();
+    node.set("buckets", buckets);
+    assert_eq!(node.sequence(), 1);
+    assert_eq!(node.digest(), ("root".to_string(), 1));
+    let v = node.get("buckets");
+    assert!(v.is_some());
+    assert_eq!(v.unwrap().as_integers().unwrap().as_slice(), [ 1, 5, 6 ]);
+    let d = node.diff(0);
+    assert_eq!(d.len(), 1);
+    assert_eq!(d[0].0, "buckets".to_string());
+    assert_eq!(d[0].1.0.as_integers().unwrap().as_slice(), [ 1, 5, 6 ]);
+    assert_eq!(d[0].1.1, 1);
+    assert!(node.diff(1).is_empty());
+  }
+
+  #[test]
+  fn test_self_node_is_not_discardable() {
+    let mut node = SelfNode::new("root".to_string(), addr());
+    assert_eq!(node.discardable(), false);
+  }
 }
 
 pub struct PeerNode(BaseNode, Option<FailureDetector>, Touch);

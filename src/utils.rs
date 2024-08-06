@@ -37,6 +37,41 @@ pub mod rand {
   }
 }
 
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_rand_shuffle() {
+    let mut rng = rng(Some(42));
+    let mut array = vec![ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ];
+    rand::shuffle(&mut rng, &mut array, 7);
+    assert_eq!(
+      [ 10, 1, 12, 13, 15, 4, 5, 7, 8, 9, 0, 11, 2, 3, 14, 6 ],
+      array.as_slice()
+    );
+  }
+
+  #[test]
+  fn test_rand_shuffle_partial() {
+    let mut rng = rng(Some(42));
+    let mut array = vec![ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ];
+    rand::shuffle(&mut rng, &mut array, 3);
+    assert_eq!(
+      [ 10, 1, 12, 3, 4, 5, 6, 7, 8, 9, 0, 11, 2, 13, 14, 15 ],
+      array.as_slice()
+    );
+  }
+
+  #[test]
+  fn test_rand_choose() {
+    let mut rng = rng(Some(42));
+    let mut array = vec![ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ];
+    let choice = *rand::choose(&mut rng, &mut array);
+    assert_eq!(choice, 10);
+  }
+}
+
 #[derive(Debug)]
 pub struct Touch(Instant);
 

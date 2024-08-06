@@ -12,6 +12,13 @@ struct Gossip {
 type NodeDiff = (Digest, Vec<Diff>, Option<SocketAddr>);
 
 impl Gossip {
+  fn new(cluster: &str, node: &str, address: SocketAddr, roots: Vec<SocketAddr>) -> Self {
+    Gossip {
+      name: cluster.to_string(),
+      node: SelfNode::new(node.to_string(), address),
+      peers: Peers::new(roots)
+    }
+  }
 
   fn process_digest(&mut self, digest: Vec<Digest>) -> (Vec<Digest>, Vec<NodeDiff>) {
     let mut requests: Vec<Digest> = Vec::new();

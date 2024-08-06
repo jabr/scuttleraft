@@ -3,18 +3,10 @@ mod utils;
 mod node;
 mod peers;
 mod gossip;
+mod value;
 
 use indexmap::IndexMap;
 
-#[derive(Clone)]
-enum Value {
-    String(String),
-    Boolean(bool),
-    Integer(i64),
-    Float(f64),
-    Integers(Vec<i64>),
-    Floats(Vec<f64>),
-}
 
 fn main() {
     println!("Hello, world!");
