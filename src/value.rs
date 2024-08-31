@@ -99,7 +99,7 @@ impl Number {
   }
 }
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Value {
   String(String),
   Boolean(bool),
