@@ -8,7 +8,7 @@ use crate::failure_detector::FailureDetector;
 use crate::utils::Touch;
 
 #[cfg(test)]
-use crate::utils::ManualTouch as Touch;
+use crate::utils::testing::ManualTouch as Touch;
 
 type SequencedValue = (Value, u64);
 pub type Diff = (String, (Value, u64));

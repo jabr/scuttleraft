@@ -2,7 +2,7 @@
 use super::utils::Touch;
 
 #[cfg(test)]
-use super::utils::ManualTouch as Touch;
+use super::utils::testing::ManualTouch as Touch;
 
 pub struct FailureDetector {
   threshold: f64,
