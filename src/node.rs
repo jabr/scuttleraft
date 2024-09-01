@@ -3,12 +3,7 @@ use fxhash::FxHashMap;
 
 use crate::value::Value;
 use crate::failure_detector::FailureDetector;
-
-#[cfg(not(test))]
 use crate::utils::Touch;
-
-#[cfg(test)]
-use crate::utils::testing::ManualTouch as Touch;
 
 type SequencedValue = (Value, u64);
 pub type Diff = (String, (Value, u64));

@@ -1,21 +1,14 @@
-#[derive(Debug)]
-pub struct ManualTouch(f64);
+pub fn assert_is_close(actual: f64, expected: f64, tolerance: f64) {
+  assert!(
+    (actual - expected).abs() < tolerance,
+    "actual {} is not within {} of expected {}",
+    actual, tolerance, expected
+  );
+}
 
-static mut MANUAL_TOUCH_GLOBAL_NOW: f64 = 0.0;
+use mock_instant::thread_local::MockClock;
+use std::time::Duration;
 
-impl ManualTouch {
-  pub fn now() -> Self { Self(0.0) }
-  pub fn age(&self) -> f64 {
-    unsafe { self.0 + MANUAL_TOUCH_GLOBAL_NOW }
-  }
-  pub fn update(&mut self) -> f64 {
-    let elapsed = self.age();
-    self.0 = 0.0;
-    return elapsed;
-  }
-
-  pub fn adjust(&mut self, seconds: f64) { self.0 += seconds; }
-  pub fn set_global_now(seconds: f64) {
-    unsafe { MANUAL_TOUCH_GLOBAL_NOW = seconds; }
-  }
+pub fn advance_clock(seconds: f64) {
+  MockClock::advance(Duration::from_secs_f64(seconds));
 }

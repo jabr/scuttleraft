@@ -1,6 +1,7 @@
 use super::*;
-use std::net::ToSocketAddrs;
+use crate::utils::testing::{assert_is_close, advance_clock};
 
+use std::net::ToSocketAddrs;
 fn addr() -> SocketAddr {
   "127.1.1.11:3322".to_socket_addrs()
     .unwrap().into_iter().nth(0).unwrap()
@@ -164,21 +165,19 @@ fn test_peer_node_discardable() {
   assert_eq!(node.discardable(), false);
   assert_eq!(node.active(), true);
 
-  // Time passes...
-  node.2.adjust(1e5);
-
-  // With failing detector...
   let detector = node.1.as_ref().unwrap();
   assert_eq!(detector.failed(), false);
-  Touch::set_global_now(1e2);
+  // Time passes...
+  advance_clock(1e2);
+
+  // With failing detector...
   assert_eq!(detector.failed(), true);
   // not discardable but now not active
   assert_eq!(node.discardable(), false);
   assert_eq!(node.active(), false);
-  Touch::set_global_now(0.0);
 
   // Time passes...
-  node.2.adjust(1e6);
+  advance_clock(1e6);
 
   // Node becomes discardable
   assert_eq!(node.discardable(), true);

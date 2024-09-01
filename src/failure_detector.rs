@@ -1,8 +1,4 @@
-#[cfg(not(test))]
 use super::utils::Touch;
-
-#[cfg(test)]
-use super::utils::testing::ManualTouch as Touch;
 
 pub struct FailureDetector {
   threshold: f64,
@@ -70,31 +66,24 @@ impl fmt::Debug for FailureDetector {
 #[cfg(test)]
 mod tests {
   use super::*;
-
-  fn assert_is_close(actual: f64, expected: f64, tolerance: f64) {
-    assert!(
-      (actual - expected).abs() < tolerance,
-      "actual {} is not within {} of expected {}",
-      actual, tolerance, expected
-    );
-  }
+  use crate::utils::testing::{assert_is_close, advance_clock};
 
   #[test]
   fn test_with_no_variance_phi_increases_since_the_last_update() {
     let mut d = FailureDetector::default();
     assert_eq!(d.phi(), 0.0);
 
-    d.touch.adjust(0.5);
+    advance_clock(0.5);
     assert_eq!(d.phi(), 0.5);
 
-    d.touch.adjust(0.5);
+    advance_clock(0.5);
     assert_eq!(d.phi(), 1.0);
 
-    d.touch.adjust(1.0);
+    advance_clock(1.0);
     assert_eq!(d.phi(), 2.0);
     assert_eq!(d.failed(), false);
 
-    d.touch.adjust(10.0);
+    advance_clock(10.0);
     assert_eq!(d.phi(), 12.0);
     assert_eq!(d.failed(), true);
   }
@@ -102,21 +91,21 @@ mod tests {
   #[test]
   fn test_with_some_variance_phi_increases_more_slowly() {
     let mut d = FailureDetector::default();
-    d.touch.adjust(2.0);
+    advance_clock(2.0);
     d.update();
     assert_is_close(d.variance(), 0.0899999, 1e-7);
     assert_eq!(d.phi(), 0.0);
 
-    d.touch.adjust(0.5);
+    advance_clock(0.5);
     assert_is_close(d.phi(), 0.2941176, 1e-7);
 
-    d.touch.adjust(0.5);
+    advance_clock(0.5);
     assert_is_close(d.phi(), 0.5882353, 1e-7);
 
-    d.touch.adjust(1.0);
+    advance_clock(1.0);
     assert_is_close(d.phi(), 1.1764706, 1e-7);
 
-    d.touch.adjust(10.0);
+    advance_clock(10.0);
     assert_is_close(d.phi(), 7.0588235, 1e-7);
   }
 
@@ -124,52 +113,52 @@ mod tests {
   fn test_update_interval_consistency_affects_variance() {
     let mut d = FailureDetector::default();
 
-    d.touch.adjust(0.01);
+    advance_clock(0.01);
     d.update();
     assert_is_close(d.variance(), 0.0882089, 1e-7);
     assert_is_close(d.mean, 0.901, 1e-7);
 
-    d.touch.adjust(1.5);
+    advance_clock(1.5);
     d.update();
     assert_is_close(d.variance(), 0.1116801, 1e-7);
     assert_is_close(d.mean, 0.9609, 1e-7);
 
-    d.touch.adjust(10.0);
+    advance_clock(10.0);
     d.update();
     assert_is_close(d.variance(), 7.4539917, 1e-7);
     assert_is_close(d.mean, 1.8648099, 1e-7);
 
-    d.touch.adjust(0.2);
+    advance_clock(0.2);
     d.update();
     assert_is_close(d.variance(), 6.9580358, 1e-7);
     assert_is_close(d.mean, 1.698329, 1e-7);
 
-    d.touch.adjust(1.0);
+    advance_clock(1.0);
     d.update();
     assert_is_close(d.variance(), 6.3061220, 1e-7);
     assert_is_close(d.mean, 1.6284961, 1e-7);
 
-    d.touch.adjust(1.0);
+    advance_clock(1.0);
     d.update();
     assert_is_close(d.variance(), 5.7110604, 1e-7);
     assert_is_close(d.mean, 1.5656464, 1e-7);
 
-    d.touch.adjust(1.0);
+    advance_clock(1.0);
     d.update();
     assert_is_close(d.variance(), 5.1687504, 1e-7);
     assert_is_close(d.mean, 1.5090818, 1e-7);
 
-    d.touch.adjust(1.0);
+    advance_clock(1.0);
     d.update();
     assert_is_close(d.variance(), 4.6752002, 1e-7);
     assert_is_close(d.mean, 1.4581736, 1e-7);
 
-    d.touch.adjust(1.4582);
+    advance_clock(1.4582);
     d.update();
     assert_is_close(d.variance(), 4.2076801, 1e-7);
     assert_is_close(d.mean, 1.4581762, 1e-7);
 
-    d.touch.adjust(1.4582);
+    advance_clock(1.4582);
     d.update();
     assert_is_close(d.variance(), 3.7869121, 1e-7);
     assert_is_close(d.mean, 1.4581786, 1e-7);
