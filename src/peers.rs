@@ -96,3 +96,6 @@ impl Peers {
     return sample.into_iter().collect();
   }
 }
+
+#[cfg(test)]
+mod test;

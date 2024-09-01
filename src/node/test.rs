@@ -1,11 +1,5 @@
 use super::*;
-use crate::utils::testing::{assert_is_close, advance_clock};
-
-use std::net::ToSocketAddrs;
-fn addr() -> SocketAddr {
-  "127.1.1.11:3322".to_socket_addrs()
-    .unwrap().into_iter().nth(0).unwrap()
-}
+use crate::utils::testing::{addr, advance_clock};
 
 fn has_change(diff: &Vec<Diff>, key: &str, value: Value, sequence: u64) -> bool {
   return diff.iter().any(|(k, (v, s))| {

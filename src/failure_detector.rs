@@ -70,7 +70,7 @@ mod tests {
 
   #[test]
   fn test_with_no_variance_phi_increases_since_the_last_update() {
-    let mut d = FailureDetector::default();
+    let d = FailureDetector::default();
     assert_eq!(d.phi(), 0.0);
 
     advance_clock(0.5);
