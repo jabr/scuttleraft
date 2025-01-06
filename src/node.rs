@@ -153,7 +153,7 @@ impl Node for PeerNode {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::utils::testing::{addr, advance_clock};
+  use crate::utils::testing::{addr, advance_clock, create_peer};
 
   fn has_change(diff: &Vec<Diff>, key: &str, value: Value, sequence: u64) -> bool {
     return diff.iter().any(|(k, (v, s))| {
@@ -233,9 +233,9 @@ mod test {
 
   #[test]
   fn test_peer_node_is_node() {
-    let node = PeerNode::new("peer1".into(), addr());
+    let node = create_peer(1);
     assert_eq!(node.identifier(), "peer1");
-    assert_eq!(node.address().to_string(), "127.1.1.11:3322");
+    assert_eq!(node.address().to_string(), "127.1.1.21:3322");
     assert_eq!(node.sequence(), 0);
 
     assert_eq!(node.digest(), ("peer1".into(), 0));
@@ -245,7 +245,7 @@ mod test {
 
   #[test]
   fn test_peer_node_apply() {
-    let mut node = PeerNode::new("peer1".to_string(), addr());
+    let mut node = create_peer(1);
     node.apply(2, vec![
       ("key1".into(), (10.into(), 1)),
       ("key2".into(), ("value".into(), 2)),
@@ -258,7 +258,7 @@ mod test {
 
   #[test]
   fn test_peer_node_apply_outdated() {
-    let mut node = PeerNode::new("peer1".to_string(), addr());
+    let mut node = create_peer(1);
     node.apply(5, vec![("key1".into(), (10.into(), 5))]);
     node.apply(3, vec![("key2".into(), (20.into(), 3))]);
     node.apply(6, vec![("key1".into(), (99.into(), 5))]);
@@ -269,8 +269,18 @@ mod test {
   }
 
   #[test]
+  fn test_peer_node_apply_sequential_updates() {
+    let mut node = create_peer(1);
+    node.apply(5, vec![("key1".into(), (10.into(), 3))]);
+    node.apply(5, vec![("key1".into(), (20.into(), 4))]);
+
+    assert_eq!(node.sequence(), 5);
+    assert_eq!(node.get("key1"), Some(&20.into()));
+  }
+
+  #[test]
   fn test_peer_node_diff() {
-    let mut node = PeerNode::new("peer1".to_string(), addr());
+    let mut node = create_peer(1);
     node.apply(3, vec![
       ("key1".into(), (10.into(), 1)),
       ("key2".into(), (20.into(), 2)),
@@ -285,7 +295,7 @@ mod test {
 
   #[test]
   fn test_peer_node_active() {
-    let mut node = PeerNode::new("peer1".to_string(), addr());
+    let mut node = create_peer(1);
 
     // Starts as inactive
     assert_eq!(node.active(), false);
@@ -304,7 +314,7 @@ mod test {
 
   #[test]
   fn test_peer_node_discardable() {
-    let mut node = PeerNode::new("peer1".to_string(), addr());
+    let mut node = create_peer(1);
 
     // With recent activity...
     node.update_detector();

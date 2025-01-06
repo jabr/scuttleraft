@@ -25,3 +25,11 @@ pub fn addrs() -> Vec<SocketAddr> {
 pub fn advance_clock(seconds: f64) {
   MockClock::advance(Duration::from_secs_f64(seconds));
 }
+
+use crate::node::PeerNode;
+pub fn create_peer(id: u8) -> PeerNode {
+    PeerNode::new(
+        format!("peer{id}").into(),
+        addr_from(&format!("127.1.1.2{id}:3322"))
+    )
+}

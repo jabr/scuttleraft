@@ -54,10 +54,15 @@ impl Peers {
   }
 
   fn next(&mut self) -> Option<&PeerNode> {
-    self.offset += 1;
-    match self.list.get_index(self.offset % self.list.len()) {
-      Some((_, node)) => { Some(node) }
-      None => { None }
+    match self.list.len() {
+      0 => { None }
+      n => {
+        self.offset += 1;
+        match self.list.get_index(self.offset % n) {
+          Some((_, node)) => { Some(node) }
+          None => { None }
+        }
+      }
     }
   }
 
@@ -100,7 +105,9 @@ impl Peers {
 #[cfg(test)]
 mod test {
   use super::*;
-  use crate::utils::testing::{addr, addrs, addr_from};
+  use crate::utils::testing::{
+      addr, addrs, addr_from, advance_clock, create_peer,
+  };
 
   #[test]
   fn test_peers_creation() {
@@ -113,40 +120,75 @@ mod test {
   #[test]
   fn test_peers_add_and_get() {
     let mut peers = Peers::new(addrs());
-    let peer = PeerNode::new("p1".into(), addr());
-    peers.add(peer);
+    peers.add(create_peer(1));
     assert_eq!(peers.len(), 1);
-    assert!(peers.get("p1").is_some());
-    assert!(peers.get_mut("p1").is_some());
-    assert_eq!(peers.get("p1").unwrap().identifier(), "p1");
+    assert!(peers.get("peer1").is_some());
+    assert!(peers.get_mut("peer1").is_some());
+    assert_eq!(peers.get("peer1").unwrap().identifier(), "peer1");
   }
 
   #[test]
   fn test_peers_digest() {
     let mut peers = Peers::new(addrs());
-    let peer1 = PeerNode::new("p1".into(), addr());
-    peers.add(peer1);
-    let peer2 = PeerNode::new("p2".into(), addr_from("127.1.1.20:3322"));
-    peers.add(peer2);
+    peers.add(create_peer(1));
+    peers.add(create_peer(2));
     assert_eq!(peers.len(), 2);
-    assert_eq!(peers.digest(), [("p1".into(), 0), ("p2".into(), 0)]);
+    assert_eq!(peers.digest(), [
+        ("peer1".into(), 0),
+        ("peer2".into(), 0),
+    ]);
+  }
+
+  #[test]
+  fn test_peers_prune() {
+      let mut peers = Peers::new(addrs());
+      peers.add(create_peer(1));
+      advance_clock(86400.0); // time passes...
+      peers.add(create_peer(2));
+      assert_eq!(peers.len(), 2);
+
+      // no peers are discardable
+      peers.prune();
+      assert_eq!(peers.len(), 2);
+
+      // time passes...
+      advance_clock(86400.0);
+      peers.prune();
+      assert_eq!(peers.len(), 1);
+      assert!(peers.get("peer1").is_none());
+      assert!(peers.get("peer2").is_some());
+  }
+
+  #[test]
+  fn test_peers_prune_with_all_discardable() {
+      let mut peers = Peers::new(addrs());
+      peers.add(create_peer(1));
+      peers.add(create_peer(2));
+      advance_clock(86400.0 * 2.0); // Make all peers discardable
+      peers.prune();
+      assert_eq!(peers.len(), 0);
   }
 
   #[test]
   fn test_peers_next() {
     let mut peers = Peers::new(addrs());
-    peers.add(PeerNode::new("p1".into(), addr()));
-    peers.add(PeerNode::new("p2".into(), addr_from("127.1.1.20:3322")));
-    assert_eq!(peers.next().unwrap().identifier(), "p2");
-    assert_eq!(peers.next().unwrap().identifier(), "p1");
-    assert_eq!(peers.next().unwrap().identifier(), "p2");
-    assert_eq!(peers.next().unwrap().identifier(), "p1");
-    assert_eq!(peers.next().unwrap().identifier(), "p2");
-    peers.add(PeerNode::new("p3".into(), addr_from("127.1.1.21:3322")));
-    assert_eq!(peers.next().unwrap().identifier(), "p1");
-    assert_eq!(peers.next().unwrap().identifier(), "p2");
-    assert_eq!(peers.next().unwrap().identifier(), "p3");
-    assert_eq!(peers.next().unwrap().identifier(), "p1");
+    peers.add(create_peer(1));
+    peers.add(create_peer(2));
+    assert_eq!(peers.next().unwrap().identifier(), "peer2");
+    assert_eq!(peers.next().unwrap().identifier(), "peer1");
+    assert_eq!(peers.next().unwrap().identifier(), "peer2");
+    assert_eq!(peers.next().unwrap().identifier(), "peer1");
+    assert_eq!(peers.next().unwrap().identifier(), "peer2");
+    peers.add(create_peer(3));
+    assert_eq!(peers.next().unwrap().identifier(), "peer1");
+    assert_eq!(peers.next().unwrap().identifier(), "peer2");
+    assert_eq!(peers.next().unwrap().identifier(), "peer3");
+    assert_eq!(peers.next().unwrap().identifier(), "peer1");
   }
 
+  #[test]
+  fn test_peers_next_empty() {
+      let mut peers = Peers::new(addrs());
+      assert!(peers.next().is_none());
+  }
 }
