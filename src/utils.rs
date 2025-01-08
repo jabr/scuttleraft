@@ -23,7 +23,8 @@ pub mod rand {
   // * Note: this modifies the input array.
   pub fn shuffle<T>(rng: &mut super::Rng, array: &mut Vec<T>, max: usize) {
     let len = array.len();
-    let m = usize::min(max, len - 2);
+    if len == 0 { return; }
+    let m = usize::min(max, len - 1);
     for i in 0..m {
       let j = rng.rand_range(i as u64 .. len as u64) as usize;
       array.swap(i, j);
@@ -44,9 +45,9 @@ mod tests {
   fn test_rand_shuffle() {
     let mut rng = rng(Some(42));
     let mut array = vec![ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ];
-    rand::shuffle(&mut rng, &mut array, 7);
+    rand::shuffle(&mut rng, &mut array, usize::MAX);
     assert_eq!(
-      [ 10, 1, 12, 13, 15, 4, 5, 7, 8, 9, 0, 11, 2, 3, 14, 6 ],
+      [ 10, 1, 12, 13, 15, 4, 5, 2, 11, 8, 3, 14, 7, 6, 9, 0 ],
       array.as_slice()
     );
   }
@@ -60,6 +61,22 @@ mod tests {
       [ 10, 1, 12, 3, 4, 5, 6, 7, 8, 9, 0, 11, 2, 13, 14, 15 ],
       array.as_slice()
     );
+  }
+
+  #[test]
+  fn test_rand_shuffle_with_two_and_fewer_items() {
+    let mut rng = rng(Some(42));
+    let mut array = vec![ 0, 1 ];
+    rand::shuffle(&mut rng, &mut array, 7);
+    assert_eq!([ 1, 0 ], array.as_slice());
+
+    array = vec![ 0 ];
+    rand::shuffle(&mut rng, &mut array, 7);
+    assert_eq!([ 0 ], array.as_slice());
+
+    array = vec![];
+    rand::shuffle(&mut rng, &mut array, 7);
+    assert!(array.is_empty());
   }
 
   #[test]

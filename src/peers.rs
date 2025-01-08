@@ -84,7 +84,7 @@ impl Peers {
     let (mut actives, inactives) = self.partition();
 
     // sometimes, add an inactive
-    if rng.rand_float() < 0.1 {
+    if !inactives.is_empty() && rng.rand_float() < 0.1 {
       sample.insert(*rand::choose(rng, &inactives).address());
     }
 
@@ -93,6 +93,7 @@ impl Peers {
       actives.len(),
       isize::max(0, 4 - sample.len() as isize) as usize
     );
+
     rand::shuffle(rng, &mut actives, count);
     for n in &actives[0..count] {
       sample.insert(*n.address());
@@ -105,9 +106,15 @@ impl Peers {
 #[cfg(test)]
 mod test {
   use super::*;
+  use crate::utils::rng;
   use crate::utils::testing::{
       addr, addrs, addr_from, advance_clock, create_peer,
   };
+
+  fn active_peer(peers: &mut Peers, id: &str) {
+    peers.get_mut(id).unwrap()
+      .apply(1, vec![("k".into(), (42.into(), 1))]);
+  }
 
   #[test]
   fn test_peers_creation() {
@@ -170,25 +177,140 @@ mod test {
   }
 
   #[test]
+  fn test_peers_actives() {
+    let mut peers = Peers::new(addrs());
+    peers.add(create_peer(1));
+    peers.add(create_peer(2));
+
+    // none are active initially
+    assert!(peers.actives().is_empty());
+
+    fn id(peer: Option<&&PeerNode>) -> String {
+      peer.unwrap().identifier().to_string()
+    }
+
+    active_peer(&mut peers, "peer1");
+
+    let actives = peers.actives();
+    assert_eq!(actives.len(), 1);
+    assert_eq!(id(actives.get("peer1")), "peer1");
+
+    active_peer(&mut peers, "peer2");
+
+    let actives = peers.actives();
+    assert_eq!(actives.len(), 2);
+    assert_eq!(id(actives.get("peer1")), "peer1");
+    assert_eq!(id(actives.get("peer2")), "peer2");
+  }
+
+  #[test]
   fn test_peers_next() {
     let mut peers = Peers::new(addrs());
     peers.add(create_peer(1));
     peers.add(create_peer(2));
-    assert_eq!(peers.next().unwrap().identifier(), "peer2");
-    assert_eq!(peers.next().unwrap().identifier(), "peer1");
-    assert_eq!(peers.next().unwrap().identifier(), "peer2");
-    assert_eq!(peers.next().unwrap().identifier(), "peer1");
-    assert_eq!(peers.next().unwrap().identifier(), "peer2");
+
+    fn next_id(peers: &mut Peers) -> String {
+      peers.next().unwrap().identifier().to_string()
+    }
+
+    assert_eq!(next_id(&mut peers), "peer2");
+    assert_eq!(next_id(&mut peers), "peer1");
+    assert_eq!(next_id(&mut peers), "peer2");
+    assert_eq!(next_id(&mut peers), "peer1");
+    assert_eq!(next_id(&mut peers), "peer2");
+
     peers.add(create_peer(3));
-    assert_eq!(peers.next().unwrap().identifier(), "peer1");
-    assert_eq!(peers.next().unwrap().identifier(), "peer2");
-    assert_eq!(peers.next().unwrap().identifier(), "peer3");
-    assert_eq!(peers.next().unwrap().identifier(), "peer1");
+    assert_eq!(next_id(&mut peers), "peer1");
+    assert_eq!(next_id(&mut peers), "peer2");
+    assert_eq!(next_id(&mut peers), "peer3");
+    assert_eq!(next_id(&mut peers), "peer1");
   }
 
   #[test]
   fn test_peers_next_empty() {
       let mut peers = Peers::new(addrs());
       assert!(peers.next().is_none());
+  }
+
+  #[test]
+  fn test_peers_targets_no_peers() {
+    let mut rng = rng(None);
+    let mut peers = Peers::new(addrs());
+    let targets = peers.targets(&mut rng);
+    assert_eq!(targets, addrs());
+  }
+
+  #[test]
+  fn test_peers_targets_includes_next_peer() {
+    let mut rng = rng(Some(39));
+    let mut peers = Peers::new(addrs());
+    peers.add(create_peer(1));
+    peers.add(create_peer(2));
+
+    assert_eq!(peers.targets(&mut rng), [
+      "127.1.1.22:3322".parse().unwrap(),
+    ]);
+    assert_eq!(peers.targets(&mut rng), [
+      "127.1.1.21:3322".parse().unwrap(),
+    ]);
+    assert_eq!(peers.targets(&mut rng), [
+      "127.1.1.22:3322".parse().unwrap(),
+    ]);
+  }
+
+  #[test]
+  fn test_peers_targets_sometimes_includes_a_root() {
+    let mut rng = rng(Some(44));
+    let mut peers = Peers::new(addrs());
+    peers.add(create_peer(1));
+
+    assert_eq!(peers.targets(&mut rng), [
+      "127.1.1.13:3322".parse().unwrap(),
+      "127.1.1.21:3322".parse().unwrap(),
+    ]);
+  }
+
+  #[test]
+  fn test_peers_targets_sometimes_includes_an_inactive_peer() {
+    let mut rng = rng(Some(58));
+    let mut peers = Peers::new(addrs());
+    peers.add(create_peer(1));
+    peers.add(create_peer(2));
+
+    assert_eq!(peers.targets(&mut rng), [
+      "127.1.1.21:3322".parse().unwrap(),
+      "127.1.1.22:3322".parse().unwrap(),
+    ]);
+  }
+
+  #[test]
+  fn test_peers_targets_fills_remaining_slots_with_random_actives() {
+    let mut peers = Peers::new(addrs());
+
+    for i in 1..10 {
+      peers.add(create_peer(i));
+      active_peer(&mut peers, &format!("peer{i}"));
+    }
+    peers.add(create_peer(10));
+
+    assert_eq!(peers.targets(&mut rng(Some(41))), [
+      "127.1.1.22:3322".parse().unwrap(),
+      "127.1.1.23:3322".parse().unwrap(),
+      "127.1.1.24:3322".parse().unwrap(),
+      "127.1.1.26:3322".parse().unwrap(),
+    ]);
+
+    assert_eq!(peers.targets(&mut rng(Some(44))), [
+      "127.1.1.23:3322".parse().unwrap(),
+      "127.1.1.13:3322".parse().unwrap(),
+      "127.1.1.21:3322".parse().unwrap(),
+    ]);
+
+    assert_eq!(peers.targets(&mut rng(Some(58))), [
+      "127.1.1.210:3322".parse().unwrap(),
+      "127.1.1.24:3322".parse().unwrap(),
+      "127.1.1.25:3322".parse().unwrap(),
+      "127.1.1.26:3322".parse().unwrap(),
+    ]);
   }
 }
