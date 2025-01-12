@@ -150,6 +150,35 @@ impl Node for PeerNode {
   }
 }
 
+use std::fmt;
+impl fmt::Debug for SelfNode {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("SelfNode")
+        .field("identifier", &self.0.identifier)
+        .field("address", &self.0.address)
+        .field("sequence", &self.0.sequence)
+        .field("values", &self.0.values.len())
+        .finish()
+  }
+}
+
+impl fmt::Debug for PeerNode {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("PeerNode")
+        .field("identifier", &self.0.identifier)
+        .field("address", &self.0.address)
+        .field("sequence", &self.0.sequence)
+        .field("values", &self.0.values.len())
+        .field("failed", &self.1
+          .as_ref()
+          .and_then(|d| Some(d.failed()))
+          .or(Some(false)).unwrap()
+        )
+        .field("age", &self.2.age())
+        .finish()
+  }
+}
+
 #[cfg(test)]
 mod test {
   use super::*;
@@ -300,10 +329,7 @@ mod test {
     // Starts as inactive
     assert_eq!(node.active(), false);
 
-    // Testing basic active/detector flow via private functions...
-
     // Becomes active when failure detector receives update
-    node.update_detector();
     node.update_detector();
     assert_eq!(node.active(), true);
 

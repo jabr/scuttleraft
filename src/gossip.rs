@@ -124,3 +124,27 @@ impl Gossip {
     return diffs;
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::utils::testing::{
+      addr, addrs, advance_clock,
+  };
+
+  #[test]
+  fn test_gossip_creation() {
+    let cluster = Gossip::new(
+      "test-cluster",
+      "root",
+      addr(),
+      addrs()
+    );
+
+    assert_eq!(cluster.name, "test-cluster");
+    assert_eq!(cluster.node.identifier(), "root");
+    assert_eq!(cluster.peers.len(), 0);
+  }
+
+  // todo
+}

@@ -32,8 +32,8 @@ impl Peers {
     self.list.get_mut(identifier)
   }
 
-  pub fn add(&mut self, node: PeerNode) -> Option<PeerNode> {
-    self.list.insert(node.identifier().to_owned(), node)
+  pub fn add(&mut self, node: PeerNode) {
+    self.list.insert(node.identifier().to_owned(), node);
   }
 
   pub fn digest(&self) -> Vec<Digest> {
@@ -108,7 +108,7 @@ mod test {
   use super::*;
   use crate::utils::rng;
   use crate::utils::testing::{
-      addr, addrs, addr_from, advance_clock, create_peer,
+      addrs, advance_clock, create_peer,
   };
 
   fn active_peer(peers: &mut Peers, id: &str) {
@@ -132,6 +132,30 @@ mod test {
     assert!(peers.get("peer1").is_some());
     assert!(peers.get_mut("peer1").is_some());
     assert_eq!(peers.get("peer1").unwrap().identifier(), "peer1");
+  }
+
+  #[test]
+  fn test_peers_add_duplicate_replaces_previous() {
+    let mut peers = Peers::new(addrs());
+    let mut p1 = create_peer(1);
+    p1.apply(1, vec![]);
+    let mut p1_dup = create_peer(1);
+    p1_dup.apply(2, vec![]);
+
+    peers.add(p1);
+    peers.add(p1_dup);
+
+    assert_eq!(peers.len(), 1);
+    let p1_current = peers.get("peer1").unwrap();
+    assert_eq!(p1_current.sequence(), 2);
+  }
+
+  #[test]
+  fn test_peers_get_nonexistent() {
+    let mut peers = Peers::new(addrs());
+    peers.add(create_peer(1));
+    assert!(peers.get("peer1").is_some());
+    assert!(peers.get("peer2").is_none());
   }
 
   #[test]
@@ -201,6 +225,12 @@ mod test {
     assert_eq!(actives.len(), 2);
     assert_eq!(id(actives.get("peer1")), "peer1");
     assert_eq!(id(actives.get("peer2")), "peer2");
+
+    // let the peers become inactive
+    advance_clock(1e2);
+    // trigger evaluation of failure detectors
+    peers.prune();
+    assert_eq!(peers.actives().len(), 0);
   }
 
   #[test]
@@ -230,6 +260,16 @@ mod test {
   fn test_peers_next_empty() {
       let mut peers = Peers::new(addrs());
       assert!(peers.next().is_none());
+  }
+
+  #[test]
+  fn test_peers_next_after_all_are_pruned() {
+    let mut peers = Peers::new(addrs());
+    peers.add(create_peer(1));
+    peers.add(create_peer(2));
+    advance_clock(86401.0);
+    peers.prune();
+    assert!(peers.next().is_none());
   }
 
   #[test]
@@ -312,5 +352,14 @@ mod test {
       "127.1.1.25:3322".parse().unwrap(),
       "127.1.1.26:3322".parse().unwrap(),
     ]);
+  }
+
+  #[test]
+  fn test_peers_with_empty_roots() {
+    assert!(
+      Peers::new(vec![])
+        .targets(&mut rng(None))
+        .is_empty()
+    );
   }
 }

@@ -163,4 +163,78 @@ mod tests {
     assert_is_close(d.variance(), 3.7869121, 1e-7);
     assert_is_close(d.mean, 1.4581786, 1e-7);
   }
+
+  #[test]
+  fn test_high_frequency_updates() {
+    let mut d = FailureDetector::default();
+    assert_eq!(d.phi(), 0.0);
+
+    for _ in 0..100 {
+      advance_clock(0.000_000_1);
+      d.update();
+    }
+    assert_is_close(d.phi(), 0.0, 1e-7);
+
+    advance_clock(0.000_000_1);
+    assert_is_close(d.phi(), 0.0000097, 1e-7);
+
+    advance_clock(0.1);
+    assert_is_close(d.phi(), 9.6767355, 1e-7);
+  }
+
+  #[test]
+  fn test_low_frequency_updates() {
+    let mut d = FailureDetector::default();
+    assert_eq!(d.phi(), 0.0);
+
+    for _ in 0..100 {
+      advance_clock(1e9);
+      d.update();
+    }
+    assert_is_close(d.phi(), 0.0, 1e-7);
+
+    advance_clock(1e9);
+    assert_is_close(d.phi(), 0.9898238, 1e-7);
+
+    advance_clock(0.1);
+    assert_is_close(d.phi(), 0.9898238, 1e-7);
+  }
+
+  #[test]
+  fn test_different_parameters() {
+      let mut d1 = FailureDetector::new(5.0, 0.8, 2.0);
+      let mut d2 = FailureDetector::new(10.0, 0.95, 0.5);
+      assert_eq!(d1.phi(), d2.phi());
+
+      advance_clock(1.0);
+      assert_is_close(d1.phi(), 0.5, 1e-7);
+      assert_is_close(d2.phi(), 2.0, 1e-7);
+
+      d1.update();
+      d2.update();
+
+      advance_clock(1.5);
+      assert_is_close(d1.phi(), 0.57692317, 1e-7);
+      assert_is_close(d2.phi(), 2.01899213, 1e-7);
+  }
+
+  #[test]
+  fn test_recovery_from_failure() {
+      let mut d = FailureDetector::default();
+
+      // Force failure
+      advance_clock(20.0);
+      assert!(d.failed());
+
+      // Recover with regular updates
+      for _ in 0..10 {
+          d.update();
+          advance_clock(1.0);
+      }
+
+      assert!(!d.failed());
+      assert_is_close(d.phi(), 0.1102618, 1e-7);
+      assert_is_close(d.mean, 1.7360989, 1e-7);
+      assert_is_close(d.variance(), 13.4440380, 1e-7);
+  }
 }
